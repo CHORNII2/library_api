@@ -6,6 +6,7 @@ from marshmallow import ValidationError
 
 books = []
 book_schema = BookSchema()
+next_id = 1
 
 @app.route("/books", methods=["GET"])
 def get_books():
@@ -20,13 +21,13 @@ def get_book(book_id):
 
 @app.route("/books", methods=["POST"])
 def add_book():
+    global next_id
     try:
         book_data = request.get_json()
         validated_data = book_schema.load(book_data)
-        if any(b.id == validated_data["id"] for b in books):
-            return jsonify({"error": "Book ID already exists"}), 400
-        book = Book(**validated_data)
+        book = Book(id=next_id, **validated_data)
         books.append(book)
+        next_id += 1
         return jsonify(book.to_dict()), 201
     except ValidationError as err:
         return jsonify(err.messages), 400
@@ -34,5 +35,8 @@ def add_book():
 @app.route("/books/<int:book_id>", methods=["DELETE"])
 def delete_book(book_id):
     global books
+    book = next((b for b in books if b.id == book_id), None)
+    if not book:
+        return jsonify({"error": "Book not found"}), 404
     books = [b for b in books if b.id != book_id]
     return jsonify({"message": "Book deleted"}), 200
